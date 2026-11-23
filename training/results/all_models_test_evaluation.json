@@ -1,0 +1,140 @@
+{
+  "ranked_models": [
+    {
+      "model_key": "pca_t2_q",
+      "model_name": "PCA Multivariate Monitor (Hotelling T\u00b2 + Q-Stat)",
+      "family": "Subspace Projection & Residual SPC",
+      "checkpoint_file": "training/models/pca_t2_q/pca_t2_q_checkpoint.npz",
+      "threshold_99pct": 1.079,
+      "training_split_70pct": {
+        "rows": 90720,
+        "false_alarm_rate_pct": 1.0
+      },
+      "validation_split_15pct": {
+        "rows": 19440,
+        "roc_auc": 0.962,
+        "f1_score": 0.8785,
+        "precision": 0.9998,
+        "recall": 0.7835,
+        "accuracy": 0.9346,
+        "flagged_pct_clean": 23.65,
+        "candidate_fault_events": 6
+      },
+      "testing_split_15pct": {
+        "rows": 19440,
+        "roc_auc": 0.9591,
+        "f1_score": 0.9165,
+        "precision": 0.9898,
+        "recall": 0.8533,
+        "accuracy": 0.9109,
+        "signal_to_noise_ratio": 8.23,
+        "flagged_pct_clean": 49.39,
+        "candidate_fault_events": 15,
+        "inference_time_ms": 37.57
+      },
+      "composite_project_score": 94.54
+    },
+    {
+      "model_key": "lstm_autoencoder",
+      "model_name": "LSTM Autoencoder (SeqLen=10, Hidden=20)",
+      "family": "Deep Temporal Sequence Reconstruction",
+      "checkpoint_file": "training/models/lstm_autoencoder/lstm_autoencoder_checkpoint.npz",
+      "threshold_99pct": 0.2213,
+      "training_split_70pct": {
+        "rows": 90720,
+        "false_alarm_rate_pct": 1.0
+      },
+      "validation_split_15pct": {
+        "rows": 19440,
+        "roc_auc": 0.9569,
+        "f1_score": 0.8932,
+        "precision": 0.9977,
+        "recall": 0.8086,
+        "accuracy": 0.9417,
+        "flagged_pct_clean": 24.45,
+        "candidate_fault_events": 5
+      },
+      "testing_split_15pct": {
+        "rows": 19440,
+        "roc_auc": 0.973,
+        "f1_score": 0.9263,
+        "precision": 0.9731,
+        "recall": 0.8837,
+        "accuracy": 0.9194,
+        "signal_to_noise_ratio": 55.18,
+        "flagged_pct_clean": 52.03,
+        "candidate_fault_events": 19,
+        "inference_time_ms": 1177.76
+      },
+      "composite_project_score": 94.27
+    },
+    {
+      "model_key": "local_outlier_factor",
+      "model_name": "Local Outlier Factor (LOF, k=20 Novelty)",
+      "family": "Local Density k-NN Anomaly Detection",
+      "checkpoint_file": "training/models/local_outlier_factor/lof_checkpoint.npz",
+      "threshold_99pct": 1.5281,
+      "training_split_70pct": {
+        "rows": 90720,
+        "false_alarm_rate_pct": 1.0
+      },
+      "validation_split_15pct": {
+        "rows": 19440,
+        "roc_auc": 0.9823,
+        "f1_score": 0.9106,
+        "precision": 0.9976,
+        "recall": 0.8375,
+        "accuracy": 0.9504,
+        "flagged_pct_clean": 25.33,
+        "candidate_fault_events": 9
+      },
+      "testing_split_15pct": {
+        "rows": 19440,
+        "roc_auc": 0.9608,
+        "f1_score": 0.9001,
+        "precision": 0.9675,
+        "recall": 0.8415,
+        "accuracy": 0.893,
+        "signal_to_noise_ratio": 2.8,
+        "flagged_pct_clean": 49.84,
+        "candidate_fault_events": 17,
+        "inference_time_ms": 2553.39
+      },
+      "composite_project_score": 92.18
+    },
+    {
+      "model_key": "isolation_forest",
+      "model_name": "Isolation Forest (150 Trees)",
+      "family": "Tree-Based Random Partitioning",
+      "checkpoint_file": "training/models/isolation_forest/isolation_forest_checkpoint.npz",
+      "threshold_99pct": 0.5469,
+      "training_split_70pct": {
+        "rows": 90720,
+        "false_alarm_rate_pct": 1.0
+      },
+      "validation_split_15pct": {
+        "rows": 19440,
+        "roc_auc": 0.9262,
+        "f1_score": 0.0095,
+        "precision": 1.0,
+        "recall": 0.0048,
+        "accuracy": 0.6997,
+        "flagged_pct_clean": 0.14,
+        "candidate_fault_events": 4
+      },
+      "testing_split_15pct": {
+        "rows": 19440,
+        "roc_auc": 0.8599,
+        "f1_score": 0.1787,
+        "precision": 0.9973,
+        "recall": 0.0981,
+        "accuracy": 0.4831,
+        "signal_to_noise_ratio": 1.18,
+        "flagged_pct_clean": 5.64,
+        "candidate_fault_events": 26,
+        "inference_time_ms": 180.68
+      },
+      "composite_project_score": 67.11
+    }
+  ]
+}

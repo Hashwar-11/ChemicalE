@@ -1,0 +1,60 @@
+{
+  "best_checkpoint": "training/models/pca_t2_q/pca_t2_q_checkpoint.npz",
+  "best_model_key": "PCA_T2_Q",
+  "best_model_name": "PCA Multivariate Monitor (Hotelling T\u00b2 + Q-Stat)",
+  "best_composite_score": 94.54,
+  "checkpoints": [
+    {
+      "rank": 1,
+      "is_best": true,
+      "model_key": "PCA_T2_Q",
+      "model_name": "PCA Multivariate Monitor (Hotelling T\u00b2 + Q-Stat)",
+      "checkpoint_file": "training/models/pca_t2_q/pca_t2_q_checkpoint.npz",
+      "composite_score": 94.54,
+      "test_roc_auc": 0.9591,
+      "test_f1": 0.9165,
+      "val_roc_auc": 0.962,
+      "val_f1": 0.8785,
+      "threshold_99pct": 1.079
+    },
+    {
+      "rank": 2,
+      "is_best": false,
+      "model_key": "LSTM_Autoencoder",
+      "model_name": "LSTM Autoencoder (SeqLen=10, Hidden=20)",
+      "checkpoint_file": "training/models/lstm_autoencoder/lstm_autoencoder_checkpoint.npz",
+      "composite_score": 94.27,
+      "test_roc_auc": 0.973,
+      "test_f1": 0.9263,
+      "val_roc_auc": 0.9569,
+      "val_f1": 0.8932,
+      "threshold_99pct": 0.2213
+    },
+    {
+      "rank": 3,
+      "is_best": false,
+      "model_key": "Local_Outlier_Factor",
+      "model_name": "Local Outlier Factor (LOF, k=20 Novelty)",
+      "checkpoint_file": "training/models/local_outlier_factor/lof_checkpoint.npz",
+      "composite_score": 92.18,
+      "test_roc_auc": 0.9608,
+      "test_f1": 0.9001,
+      "val_roc_auc": 0.9823,
+      "val_f1": 0.9106,
+      "threshold_99pct": 1.5281
+    },
+    {
+      "rank": 4,
+      "is_best": false,
+      "model_key": "Isolation_Forest",
+      "model_name": "Isolation Forest (150 Trees)",
+      "checkpoint_file": "training/models/isolation_forest/isolation_forest_checkpoint.npz",
+      "composite_score": 67.11,
+      "test_roc_auc": 0.8599,
+      "test_f1": 0.1787,
+      "val_roc_auc": 0.9262,
+      "val_f1": 0.0095,
+      "threshold_99pct": 0.5469
+    }
+  ]
+}

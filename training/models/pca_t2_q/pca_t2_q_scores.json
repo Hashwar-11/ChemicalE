@@ -1,0 +1,148 @@
+{
+  "model_key": "pca_t2_q",
+  "model_name": "PCA Multivariate Monitor (Hotelling T\u00b2 + Q-Stat)",
+  "family": "Subspace Projection & Residual SPC",
+  "best_epoch_or_stage": "Epoch 09/10 (k=23 PCs)",
+  "best_train_metric": "Var=97.43%",
+  "checkpoint_file": "training/models/pca_t2_q/pca_t2_q_checkpoint.npz",
+  "threshold_99pct": 1.0951,
+  "training_split_70pct": {
+    "rows": 90720,
+    "false_alarm_rate_pct": 1.0
+  },
+  "validation_split_15pct": {
+    "rows": 19440,
+    "roc_auc": 0.9744,
+    "f1_score": 0.8777,
+    "precision": 0.9998,
+    "recall": 0.7821,
+    "accuracy": 0.9342,
+    "flagged_pct_clean": 23.61,
+    "candidate_fault_events": 6
+  },
+  "testing_split_15pct": {
+    "rows": 19440,
+    "roc_auc": 0.968,
+    "f1_score": 0.9224,
+    "precision": 0.9856,
+    "recall": 0.8669,
+    "accuracy": 0.9165,
+    "signal_to_noise_ratio": 9.64,
+    "flagged_pct_clean": 50.39,
+    "candidate_fault_events": 11,
+    "inference_time_ms": 35.06
+  },
+  "composite_project_score": 94.94,
+  "epoch_history": [
+    {
+      "epoch": 1,
+      "n_components": 10,
+      "retained_variance": 0.7521,
+      "val_roc_auc": 0.9799,
+      "val_f1": 0.8831,
+      "test_roc_auc": 0.9668,
+      "test_f1": 0.3798,
+      "composite_score": 78.92,
+      "is_best": true
+    },
+    {
+      "epoch": 2,
+      "n_components": 12,
+      "retained_variance": 0.8055,
+      "val_roc_auc": 0.9774,
+      "val_f1": 0.8851,
+      "test_roc_auc": 0.9643,
+      "test_f1": 0.4142,
+      "composite_score": 80.31,
+      "is_best": true
+    },
+    {
+      "epoch": 3,
+      "n_components": 14,
+      "retained_variance": 0.8542,
+      "val_roc_auc": 0.9819,
+      "val_f1": 0.8841,
+      "test_roc_auc": 0.9707,
+      "test_f1": 0.4368,
+      "composite_score": 81.18,
+      "is_best": true
+    },
+    {
+      "epoch": 4,
+      "n_components": 16,
+      "retained_variance": 0.8964,
+      "val_roc_auc": 0.9748,
+      "val_f1": 0.8809,
+      "test_roc_auc": 0.9669,
+      "test_f1": 0.7291,
+      "composite_score": 87.91,
+      "is_best": true
+    },
+    {
+      "epoch": 5,
+      "n_components": 17,
+      "retained_variance": 0.9148,
+      "val_roc_auc": 0.9699,
+      "val_f1": 0.8805,
+      "test_roc_auc": 0.965,
+      "test_f1": 0.8747,
+      "composite_score": 93.15,
+      "is_best": true
+    },
+    {
+      "epoch": 6,
+      "n_components": 18,
+      "retained_variance": 0.9301,
+      "val_roc_auc": 0.9753,
+      "val_f1": 0.8799,
+      "test_roc_auc": 0.9701,
+      "test_f1": 0.867,
+      "composite_score": 92.88,
+      "is_best": false
+    },
+    {
+      "epoch": 7,
+      "n_components": 20,
+      "retained_variance": 0.9517,
+      "val_roc_auc": 0.962,
+      "val_f1": 0.8785,
+      "test_roc_auc": 0.9591,
+      "test_f1": 0.9165,
+      "composite_score": 94.54,
+      "is_best": true
+    },
+    {
+      "epoch": 8,
+      "n_components": 21,
+      "retained_variance": 0.9606,
+      "val_roc_auc": 0.9694,
+      "val_f1": 0.877,
+      "test_roc_auc": 0.9654,
+      "test_f1": 0.9196,
+      "composite_score": 94.87,
+      "is_best": true
+    },
+    {
+      "epoch": 9,
+      "n_components": 23,
+      "retained_variance": 0.9743,
+      "val_roc_auc": 0.9744,
+      "val_f1": 0.8777,
+      "test_roc_auc": 0.968,
+      "test_f1": 0.9224,
+      "composite_score": 94.94,
+      "is_best": true
+    },
+    {
+      "epoch": 10,
+      "n_components": 24,
+      "retained_variance": 0.9802,
+      "val_roc_auc": 0.9489,
+      "val_f1": 0.8729,
+      "test_roc_auc": 0.9581,
+      "test_f1": 0.9146,
+      "composite_score": 94.48,
+      "is_best": false
+    }
+  ]
+}
