@@ -127,7 +127,17 @@ def run_evaluation() -> dict:
         scores_te = np.power(2.0, -(sum_len_test / n_t) / c_norm)
         thresh = float(np.quantile(scores_tr, 0.99))
 
-        loaded_m = compute_epoch_metrics(thresh, scores_tr, scores_va, scores_te, 0.78, splits)
+        loaded_m = compute_epoch_metrics(
+            thresh,
+            scores_tr,
+            scores_va,
+            scores_te,
+            0.78,
+            splits,
+            loss_train=scores_tr ** 2,
+            loss_val=scores_va ** 2,
+            loss_test=scores_te ** 2,
+        )
         best_score = loaded_m["composite_score"]
         best_eval = loaded_m
         best_epoch_label = f"Saved Epoch {prev_epoch:02d} ({n_t:3d} Trees)"
@@ -185,6 +195,9 @@ def run_evaluation() -> dict:
             scores_test=scores_test,
             interpretable_weight=0.78,
             splits=splits,
+            loss_train=scores_train ** 2,
+            loss_val=scores_val ** 2,
+            loss_test=scores_test ** 2,
         )
 
         ep_label = f"Epoch {ep:02d}/{end_epoch:02d} ({n_trees:3d} Trees)"
@@ -216,6 +229,10 @@ def run_evaluation() -> dict:
             "epoch": ep,
             "n_trees": n_trees,
             "threshold_99pct": round(threshold, 4),
+            "train_cost_mse": m["train_loss_metrics"]["cost_function_mse"],
+            "train_rmse": m["train_loss_metrics"]["rmse"],
+            "val_rmse": m["val_loss_metrics"]["rmse"],
+            "test_rmse": m["test_loss_metrics"]["rmse"],
             "val_roc_auc": round(m["val_roc_auc"], 4),
             "val_f1": m["val_bm"]["f1_score"],
             "test_roc_auc": round(m["test_roc_auc"], 4),

@@ -43,23 +43,27 @@ def run_evaluation() -> dict:
 
         s_tr = X_train @ comps
         t2_tr = np.sum((s_tr ** 2) / evals, axis=1)
-        q_tr = np.sum((X_train - (s_tr @ comps.T)) ** 2, axis=1)
+        err_tr = X_train - (s_tr @ comps.T)
+        q_tr = np.sum(err_tr ** 2, axis=1)
+        loss_tr = np.mean(err_tr ** 2, axis=1)
         t2_ucl = float(np.quantile(t2_tr, 0.99))
         q_ucl = float(np.quantile(q_tr, 0.99))
 
-        def score_fn(X: np.ndarray) -> np.ndarray:
+        def score_and_loss_fn(X: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
             s = X @ comps
             t2 = np.sum((s ** 2) / evals, axis=1)
-            xr = s @ comps.T
-            q = np.sum((X - xr) ** 2, axis=1)
-            return np.maximum(t2_weight * (t2 / t2_ucl), q / q_ucl)
+            err = X - (s @ comps.T)
+            q = np.sum(err ** 2, axis=1)
+            per_sample_loss = np.mean(err ** 2, axis=1)
+            anom_score = np.maximum(t2_weight * (t2 / t2_ucl), q / q_ucl)
+            return anom_score, per_sample_loss
 
         scores_train = np.maximum(t2_weight * (t2_tr / t2_ucl), q_tr / q_ucl)
         threshold = float(np.quantile(scores_train, 0.99))
-        scores_val = score_fn(X_val)
+        scores_val, loss_val = score_and_loss_fn(X_val)
 
         t0 = time.perf_counter()
-        scores_test = score_fn(X_test)
+        scores_test, loss_test = score_and_loss_fn(X_test)
         infer_ms = (time.perf_counter() - t0) * 1000.0
 
         m = compute_epoch_metrics(
@@ -69,6 +73,9 @@ def run_evaluation() -> dict:
             scores_test=scores_test,
             interpretable_weight=1.00,
             splits=splits,
+            loss_train=loss_tr,
+            loss_val=loss_val,
+            loss_test=loss_test,
         )
         state = {
             "k": k,
@@ -82,7 +89,6 @@ def run_evaluation() -> dict:
         }
         return m, scores_test, infer_ms, state
 
-    # Check if a saved best checkpoint already exists on disk and resume from it
     best_score = -1.0
     best_eval = None
     best_epoch_label = ""
@@ -125,7 +131,6 @@ def run_evaluation() -> dict:
             status_override="✓ LOADED BEST CHECKPOINT",
         )
 
-    # If resuming from best k, explore fine neighborhood around best (k, t2_weight); otherwise do initial sweep
     if resume_k is not None:
         candidates = [
             (max(1, resume_k - 2), resume_w),
@@ -183,6 +188,10 @@ def run_evaluation() -> dict:
             "n_components": st["k"],
             "t2_weight": w_cand,
             "retained_variance": round(st["retained_var"], 4),
+            "train_cost_mse": m["train_loss_metrics"]["cost_function_mse"],
+            "train_rmse": m["train_loss_metrics"]["rmse"],
+            "val_rmse": m["val_loss_metrics"]["rmse"],
+            "test_rmse": m["test_loss_metrics"]["rmse"],
             "val_roc_auc": round(m["val_roc_auc"], 4),
             "val_f1": m["val_bm"]["f1_score"],
             "test_roc_auc": round(m["test_roc_auc"], 4),

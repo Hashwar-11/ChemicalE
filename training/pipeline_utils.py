@@ -1,5 +1,6 @@
 import csv
 import json
+import math
 from pathlib import Path
 import numpy as np
 
@@ -322,6 +323,23 @@ def load_splits_From_disk() -> dict:
     }
 
 
+def compute_loss_cost_rmse(per_sample_losses: np.ndarray) -> dict[str, float]:
+    """
+    Computes:
+      - loss_median: typical single-sample loss L(x_t, x_hat_t)
+      - cost_mse: Cost function J(theta) = (1/N) * sum L(x_t, x_hat_t)
+      - rmse: Root Mean Squared Error = sqrt(J(theta))
+    """
+    cost_mse = float(np.mean(per_sample_losses))
+    loss_median = float(np.median(per_sample_losses))
+    rmse = math.sqrt(max(cost_mse, 0.0))
+    return {
+        "loss_single_sample_median": round(loss_median, 5),
+        "cost_function_mse": round(cost_mse, 5),
+        "rmse": round(rmse, 4),
+    }
+
+
 def compute_epoch_metrics(
     threshold: float,
     scores_train: np.ndarray,
@@ -329,6 +347,9 @@ def compute_epoch_metrics(
     scores_test: np.ndarray,
     interpretable_weight: float,
     splits: dict,
+    loss_train: np.ndarray | None = None,
+    loss_val: np.ndarray | None = None,
+    loss_test: np.ndarray | None = None,
 ) -> dict:
     raw_train = scores_train > threshold
     raw_val = scores_val > threshold
@@ -361,9 +382,16 @@ def compute_epoch_metrics(
         + 0.10 * stability_score
     )
 
+    l_tr = compute_loss_cost_rmse(loss_train if loss_train is not None else scores_train)
+    l_va = compute_loss_cost_rmse(loss_val if loss_val is not None else scores_val)
+    l_te = compute_loss_cost_rmse(loss_test if loss_test is not None else scores_test)
+
     return {
         "threshold": threshold,
         "base_far": base_far,
+        "train_loss_metrics": l_tr,
+        "val_loss_metrics": l_va,
+        "test_loss_metrics": l_te,
         "val_roc_auc": val_roc_auc,
         "val_bm": val_bm,
         "val_events": events_val,
@@ -379,7 +407,7 @@ def compute_epoch_metrics(
 
 
 def print_banner(model_title: str, family: str, split_info: dict, resume_msg: str | None = None) -> None:
-    line = "=" * 106
+    line = "=" * 124
     print(f"\n{line}")
     print(f"  MODEL TRAINING & EVALUATION: {model_title}")
     print(f"  Architecture Family        : {family}")
@@ -394,10 +422,10 @@ def print_banner(model_title: str, family: str, split_info: dict, resume_msg: st
         print("  Checkpoint Resume State    : No prior checkpoint found — starting fresh from Epoch 01")
     print(line)
     print(
-        f"  {'Epoch / Stage':<24} | {'Train Metric':<16} | {'Val AUC':>8} | {'Val F1':>8} | "
-        f"{'Test AUC':>8} | {'Test F1':>8} | {'Score':>7} | {'Status'}"
+        f"  {'Epoch / Stage':<24} | {'Train Metric':<14} | {'Cost (MSE)':>10} | {'Test RMSE':>9} | "
+        f"{'Val F1':>7} | {'Test AUC':>8} | {'Test F1':>7} | {'Score':>6} | {'Status'}"
     )
-    print("-" * 106)
+    print("-" * 124)
 
 
 def print_epoch_row(
@@ -411,11 +439,14 @@ def print_epoch_row(
         badge = status_override
     else:
         badge = "★ NEW BEST (Checkpoint Saved)" if is_best else ""
+    cost_tr = m["train_loss_metrics"]["cost_function_mse"]
+    rmse_te = m["test_loss_metrics"]["rmse"]
     print(
-        f"  {epoch_label:<24} | {train_metric_str:<16} | "
-        f"{m['val_roc_auc']:>8.4f} | {m['val_bm']['f1_score']:>8.4f} | "
-        f"{m['test_roc_auc']:>8.4f} | {m['test_bm']['f1_score']:>8.4f} | "
-        f"{m['composite_score']:>6.2f}  | {badge}"
+        f"  {epoch_label:<24} | {train_metric_str:<14} | "
+        f"{cost_tr:>10.5f} | {rmse_te:>9.4f} | "
+        f"{m['val_bm']['f1_score']:>7.4f} | "
+        f"{m['test_roc_auc']:>8.4f} | {m['test_bm']['f1_score']:>7.4f} | "
+        f"{m['composite_score']:>6.2f} | {badge}"
     )
 
 
@@ -432,6 +463,7 @@ def finalize_and_save_best(
     infer_ms_test: float,
     epoch_history: list[dict],
     splits: dict,
+    extra_metadata: dict | None = None,
 ) -> dict:
     clean_val = best_eval["clean_val"]
     clean_test = best_eval["clean_test"]
@@ -450,9 +482,11 @@ def finalize_and_save_best(
         "training_split_70pct": {
             "rows": len(splits["X_train_scaled"]),
             "false_alarm_rate_pct": round(best_eval["base_far"], 2),
+            **best_eval["train_loss_metrics"],
         },
         "validation_split_15pct": {
             "rows": len(splits["X_val_scaled"]),
+            **best_eval["val_loss_metrics"],
             "roc_auc": round(best_eval["val_roc_auc"], 4),
             "f1_score": best_eval["val_bm"]["f1_score"],
             "precision": best_eval["val_bm"]["precision"],
@@ -463,6 +497,7 @@ def finalize_and_save_best(
         },
         "testing_split_15pct": {
             "rows": len(splits["X_test_scaled"]),
+            **best_eval["test_loss_metrics"],
             "roc_auc": round(best_eval["test_roc_auc"], 4),
             "f1_score": best_eval["test_bm"]["f1_score"],
             "precision": best_eval["test_bm"]["precision"],
@@ -476,6 +511,8 @@ def finalize_and_save_best(
         "composite_project_score": round(best_eval["composite_score"], 2),
         "epoch_history": epoch_history,
     }
+    if extra_metadata:
+        metrics.update(extra_metadata)
 
     scores_json_path = model_dir / f"{model_key}_scores.json"
     scores_json_path.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
@@ -507,36 +544,40 @@ def finalize_and_save_best(
         writer.writeheader()
         writer.writerows(events_test)
 
-    line = "=" * 102
-    print("-" * 102)
+    line = "=" * 124
+    print("-" * 124)
     print(f"  FINAL & BEST RESULT SUMMARY — {model_name}")
-    print("-" * 102)
+    print("-" * 124)
     print(f"  Best Epoch / Stage Achieved : {best_epoch_label} ({best_train_metric})")
     print(f"  Overall Composite Score     : {metrics['composite_project_score']:.2f} / 100")
-    print(f"  99% Control Limit Threshold : {metrics['threshold_99pct']:.4f} (Train Baseline FAR = {metrics['training_split_70pct']['false_alarm_rate_pct']:.2f}%)")
+    print(
+        f"  Loss & Cost Function (MSE)  : Train Loss(Med)={metrics['training_split_70pct']['loss_single_sample_median']:.5f} | "
+        f"Train Cost(MSE)={metrics['training_split_70pct']['cost_function_mse']:.5f} | "
+        f"Val Cost(MSE)={metrics['validation_split_15pct']['cost_function_mse']:.5f} | "
+        f"Test Cost(MSE)={metrics['testing_split_15pct']['cost_function_mse']:.5f}"
+    )
+    print(
+        f"  RMSE Across Splits          : Train RMSE = {metrics['training_split_70pct']['rmse']:.4f} | "
+        f"Validation RMSE = {metrics['validation_split_15pct']['rmse']:.4f} | "
+        f"Testing RMSE = {metrics['testing_split_15pct']['rmse']:.4f}"
+    )
     print(
         f"  Validation (15%) Metrics    : ROC-AUC = {metrics['validation_split_15pct']['roc_auc']:.4f} | "
         f"F1 = {metrics['validation_split_15pct']['f1_score']:.4f} | "
         f"Precision = {metrics['validation_split_15pct']['precision']:.4f} | "
         f"Recall = {metrics['validation_split_15pct']['recall']:.4f} | "
-        f"Events = {metrics['validation_split_15pct']['candidate_fault_events']}"
+        f"RMSE = {metrics['validation_split_15pct']['rmse']:.4f}"
     )
     print(
         f"  Testing (15%) Metrics       : ROC-AUC = {metrics['testing_split_15pct']['roc_auc']:.4f} | "
         f"F1 = {metrics['testing_split_15pct']['f1_score']:.4f} | "
         f"Precision = {metrics['testing_split_15pct']['precision']:.4f} | "
         f"Recall = {metrics['testing_split_15pct']['recall']:.4f} | "
+        f"RMSE = {metrics['testing_split_15pct']['rmse']:.4f} | "
         f"Accuracy = {metrics['testing_split_15pct']['accuracy']*100:.2f}%"
-    )
-    print(
-        f"  Test Anomaly Separation     : SNR = {metrics['testing_split_15pct']['signal_to_noise_ratio']:.2f}x | "
-        f"Consolidated Fault Events = {metrics['testing_split_15pct']['candidate_fault_events']} | "
-        f"Inference = {metrics['testing_split_15pct']['inference_time_ms']:.2f} ms"
     )
     print(f"  Auto-Saved Best Checkpoint  : {metrics['checkpoint_file']}")
     print(f"  Auto-Saved Model Scores     : {scores_json_path.relative_to(ROOT_DIR)}")
-    print(f"  Auto-Saved Test Predictions : {test_scores_csv_path.relative_to(ROOT_DIR)}")
-    print(f"  Auto-Saved Fault Events     : {events_csv_path.relative_to(ROOT_DIR)}")
     print(f"{line}\n")
 
     return metrics

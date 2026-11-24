@@ -23,6 +23,7 @@ def run_evaluation() -> dict:
     X_train = splits["X_train_scaled"]
     X_val = splits["X_val_scaled"]
     X_test = splits["X_test_scaled"]
+    n_features = X_train.shape[1]
 
     model_name = "Local Outlier Factor (LOF Novelty Detector)"
     family = "Local Density k-NN Anomaly Detection"
@@ -78,19 +79,22 @@ def run_evaluation() -> dict:
         reach_ref = np.maximum(knn_ref_dists, k_dist_ref[knn_ref_idx])
         lrd_ref = 1.0 / (np.mean(reach_ref, axis=1) + 1e-8)
 
-        def lof_from_precomputed(idx_mat: np.ndarray, dist_mat: np.ndarray) -> np.ndarray:
+        def lof_and_loss(idx_mat: np.ndarray, dist_mat: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
             ki = idx_mat[:, :k]
             kd = dist_mat[:, :k]
             reach = np.maximum(kd, k_dist_ref[ki])
             lrd_x = 1.0 / (np.mean(reach, axis=1) + 1e-8)
-            return np.mean(lrd_ref[ki], axis=1) / lrd_x
+            lof_score = np.mean(lrd_ref[ki], axis=1) / lrd_x
+            # Per-feature squared neighborhood distance loss: (1/D) * mean_{o in N_k(x)} ||x - o||^2
+            per_sample_loss = np.mean(kd ** 2, axis=1) / n_features
+            return lof_score, per_sample_loss
 
-        scores_train = lof_from_precomputed(tr_idx, tr_dists)
+        scores_train, loss_tr = lof_and_loss(tr_idx, tr_dists)
         threshold = float(np.quantile(scores_train, 0.99))
-        scores_val = lof_from_precomputed(va_idx, va_dists)
+        scores_val, loss_va = lof_and_loss(va_idx, va_dists)
 
         t0 = time.perf_counter()
-        scores_test = lof_from_precomputed(te_idx, te_dists)
+        scores_test, loss_te = lof_and_loss(te_idx, te_dists)
         infer_ms = (time.perf_counter() - t0) * 1000.0
 
         m = compute_epoch_metrics(
@@ -100,6 +104,9 @@ def run_evaluation() -> dict:
             scores_test=scores_test,
             interpretable_weight=0.80,
             splits=splits,
+            loss_train=loss_tr,
+            loss_val=loss_va,
+            loss_test=loss_te,
         )
         state = {
             "k": k,
@@ -190,6 +197,10 @@ def run_evaluation() -> dict:
             "epoch": ep_num,
             "n_neighbors": st["k"],
             "threshold_99pct": round(st["threshold"], 4),
+            "train_cost_mse": m["train_loss_metrics"]["cost_function_mse"],
+            "train_rmse": m["train_loss_metrics"]["rmse"],
+            "val_rmse": m["val_loss_metrics"]["rmse"],
+            "test_rmse": m["test_loss_metrics"]["rmse"],
             "val_roc_auc": round(m["val_roc_auc"], 4),
             "val_f1": m["val_bm"]["f1_score"],
             "test_roc_auc": round(m["test_roc_auc"], 4),

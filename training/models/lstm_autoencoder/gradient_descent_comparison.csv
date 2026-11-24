@@ -1,0 +1,4 @@
+optimizer_key,optimizer_name,batch_size,updates_per_epoch,train_loss_single_sample_median,train_cost_function_mse,train_rmse,val_cost_function_mse,val_rmse,val_roc_auc,val_f1_score,test_cost_function_mse,test_rmse,test_roc_auc,test_f1_score,test_precision,test_recall,test_accuracy,composite_score,train_time_s
+batch_gradient_descent,Batch Gradient Descent (BGD),"Full Batch (N=18,144)",1,0.71112,1.06599,1.0325,4.98301,2.2323,0.9746,0.8842,6.9629,2.6387,0.9638,0.5326,0.9998,0.363,0.635,81.91,14.14
+stochastic_gradient_descent_sgd,Stochastic Gradient Descent (SGD),Single Sample (batch_size=1),1500,0.42087,0.70847,0.8417,4.15717,2.0389,0.9842,0.8826,5.75634,2.3992,0.9774,0.4218,1.0,0.2673,0.5802,79.62,7.18
+mini_batch_gradient_descent,Mini-Batch Gradient Descent (MBGD),Mini-Batch (batch_size=256),71,0.04541,0.09203,0.3034,2.01879,1.4208,0.9626,0.8969,3.17758,1.7826,0.968,0.9098,0.9683,0.858,0.9025,93.65,11.33

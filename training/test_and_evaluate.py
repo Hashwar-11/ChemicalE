@@ -24,7 +24,6 @@ def main() -> None:
     summary_path = RESULTS_DIR / "all_models_test_evaluation.json"
     summary_path.write_text(json.dumps({"ranked_models": results}, indent=2) + "\n", encoding="utf-8")
 
-    # Update checkpoints_manifest.json automatically with the best checkpoints
     manifest = {
         "best_checkpoint": results[0]["checkpoint_file"],
         "best_model_key": results[0]["model_key"],
@@ -39,6 +38,10 @@ def main() -> None:
                 "best_epoch_or_stage": r["best_epoch_or_stage"],
                 "checkpoint_file": r["checkpoint_file"],
                 "composite_score": r["composite_project_score"],
+                "train_cost_mse": r["training_split_70pct"]["cost_function_mse"],
+                "train_rmse": r["training_split_70pct"]["rmse"],
+                "val_rmse": r["validation_split_15pct"]["rmse"],
+                "test_rmse": r["testing_split_15pct"]["rmse"],
                 "test_roc_auc": r["testing_split_15pct"]["roc_auc"],
                 "test_f1": r["testing_split_15pct"]["f1_score"],
                 "val_roc_auc": r["validation_split_15pct"]["roc_auc"],
@@ -50,19 +53,22 @@ def main() -> None:
     }
     (MODELS_DIR / "checkpoints_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-    line = "=" * 102
+    line = "=" * 124
     print(f"\n{line}")
-    print("  OVERALL MODEL COMPARISON LEADERBOARD (AUTOMATICALLY SAVED TO CHECKPOINTS)")
+    print("  OVERALL MODEL COMPARISON LEADERBOARD (LOSS, COST, RMSE, F1-SCORE & COMPOSITE SCORE)")
     print(line)
     print(
-        f"  {'Rank':<5} | {'Model Name':<44} | {'Best Epoch/Stage':<20} | "
-        f"{'Test AUC':>8} | {'Test F1':>8} | {'Score':>7}"
+        f"  {'Rank':<5} | {'Model Name':<42} | {'Train Cost':>10} | {'Train RMSE':>10} | "
+        f"{'Test RMSE':>9} | {'Test AUC':>8} | {'Test F1':>8} | {'Score':>6}"
     )
-    print("-" * 102)
+    print("-" * 124)
     for idx, r in enumerate(results, start=1):
         star = "★" if idx == 1 else " "
         print(
-            f"  {star} #{idx:<2} | {r['model_name'][:44]:<44} | {r['best_epoch_or_stage']:<20} | "
+            f"  {star} #{idx:<2} | {r['model_name'][:42]:<42} | "
+            f"{r['training_split_70pct']['cost_function_mse']:>10.5f} | "
+            f"{r['training_split_70pct']['rmse']:>10.4f} | "
+            f"{r['testing_split_15pct']['rmse']:>9.4f} | "
             f"{r['testing_split_15pct']['roc_auc']:>8.4f} | {r['testing_split_15pct']['f1_score']:>8.4f} | "
             f"{r['composite_project_score']:>6.2f}"
         )
