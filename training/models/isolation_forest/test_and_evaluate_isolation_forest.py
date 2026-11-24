@@ -72,16 +72,14 @@ def run_evaluation() -> dict:
     X_val = splits["X_val_scaled"]
     X_test = splits["X_test_scaled"]
 
-    model_name = "Isolation Forest (Ensemble of 150 Trees)"
+    model_name = "Isolation Forest (Progressive Tree Ensemble)"
     family = "Tree-Based Random Partitioning"
-    print_banner(model_name, family, splits)
 
     max_samples = 256
     max_depth = int(math.ceil(math.log2(max_samples)))
     c_norm = _c_factor(max_samples)
-    rng = np.random.default_rng(42)
 
-    epochs = 10
+    epochs_to_run = 10
     trees_per_epoch = 15
     trees: list[dict] = []
 
@@ -103,9 +101,60 @@ def run_evaluation() -> dict:
     best_train_metric = ""
     best_scores_test = None
     best_infer_ms = 0.0
+    start_epoch = 1
+    resume_msg = None
+    loaded_m = None
+
+    if CHECKPOINT_PATH.exists():
+        ckpt = np.load(CHECKPOINT_PATH, allow_pickle=False)
+        trees = json.loads(str(ckpt["trees_json"]))
+        prev_epoch = int(ckpt["best_epoch"]) if "best_epoch" in ckpt else (len(trees) // trees_per_epoch)
+        start_epoch = prev_epoch + 1
+
+        t0 = time.perf_counter()
+        for tree in trees:
+            _eval_tree(tree, X_train, idx_train, buf_train)
+            sum_len_train += buf_train
+            _eval_tree(tree, X_val, idx_val, buf_val)
+            sum_len_val += buf_val
+            _eval_tree(tree, X_test, idx_test, buf_test)
+            sum_len_test += buf_test
+        infer_ms = (time.perf_counter() - t0) * 1000.0
+
+        n_t = len(trees)
+        scores_tr = np.power(2.0, -(sum_len_train / n_t) / c_norm)
+        scores_va = np.power(2.0, -(sum_len_val / n_t) / c_norm)
+        scores_te = np.power(2.0, -(sum_len_test / n_t) / c_norm)
+        thresh = float(np.quantile(scores_tr, 0.99))
+
+        loaded_m = compute_epoch_metrics(thresh, scores_tr, scores_va, scores_te, 0.78, splits)
+        best_score = loaded_m["composite_score"]
+        best_eval = loaded_m
+        best_epoch_label = f"Saved Epoch {prev_epoch:02d} ({n_t:3d} Trees)"
+        best_train_metric = f"99%UCL={thresh:.4f}"
+        best_scores_test = scores_te.copy()
+        best_infer_ms = infer_ms
+        resume_msg = (
+            f"Loaded {CHECKPOINT_PATH.name} -> {best_epoch_label}, "
+            f"{best_train_metric}, Best Score={best_score:.2f}/100 (Resuming at Epoch {start_epoch:02d})"
+        )
+
+    print_banner(model_name, family, splits, resume_msg=resume_msg)
+
+    if loaded_m is not None:
+        print_epoch_row(
+            best_epoch_label,
+            best_train_metric,
+            loaded_m,
+            is_best=False,
+            status_override="✓ LOADED BEST CHECKPOINT",
+        )
+
+    rng = np.random.default_rng(42 + len(trees))
+    end_epoch = start_epoch + epochs_to_run - 1
     epoch_history = []
 
-    for ep in range(1, epochs + 1):
+    for ep in range(start_epoch, end_epoch + 1):
         t0 = time.perf_counter()
         for _ in range(trees_per_epoch):
             sample_idx = rng.choice(len(X_train), size=max_samples, replace=False)
@@ -138,9 +187,9 @@ def run_evaluation() -> dict:
             splits=splits,
         )
 
-        ep_label = f"Epoch {ep:02d}/10 ({n_trees:3d} Trees)"
+        ep_label = f"Epoch {ep:02d}/{end_epoch:02d} ({n_trees:3d} Trees)"
         tr_metric = f"99%UCL={threshold:.4f}"
-        is_best = m["composite_score"] > best_score
+        is_best = m["composite_score"] > best_score + 1e-6
 
         if is_best:
             best_score = m["composite_score"]
@@ -149,7 +198,6 @@ def run_evaluation() -> dict:
             best_train_metric = tr_metric
             best_scores_test = scores_test.copy()
             best_infer_ms = infer_ms
-            # Automatically save the new best Isolation Forest checkpoint to isolation_forest_checkpoint.npz
             np.savez_compressed(
                 CHECKPOINT_PATH,
                 model_type="Isolation_Forest",

@@ -26,7 +26,6 @@ def run_evaluation() -> dict:
 
     model_name = "Local Outlier Factor (LOF Novelty Detector)"
     family = "Local Density k-NN Anomaly Detection"
-    print_banner(model_name, family, splits)
 
     ref_size = 3024
     stride = max(1, len(X_train) // ref_size)
@@ -41,8 +40,7 @@ def run_evaluation() -> dict:
     np.fill_diagonal(d2_ref, np.inf)
     dists_ref = np.sqrt(d2_ref)
 
-    # Precompute sorted top-50 neighbors for train, val, test against X_ref so 10 k-stages run fast
-    max_k = 50
+    max_k = 60
     ref_top_idx = np.argpartition(dists_ref, kth=max_k - 1, axis=1)[:, :max_k]
     ref_row = np.arange(m_ref)[:, None]
     ref_top_dists = dists_ref[ref_row, ref_top_idx]
@@ -72,17 +70,8 @@ def run_evaluation() -> dict:
     va_idx, va_dists = precompute_knn(X_val)
     te_idx, te_dists = precompute_knn(X_test)
 
-    k_schedule = [5, 8, 12, 16, 20, 25, 30, 35, 40, 50]
-
-    best_score = -1.0
-    best_eval = None
-    best_epoch_label = ""
-    best_train_metric = ""
-    best_scores_test = None
-    best_infer_ms = 0.0
-    epoch_history = []
-
-    for ep_idx, k in enumerate(k_schedule, start=1):
+    def evaluate_k(k: int) -> tuple[dict, np.ndarray, float, dict]:
+        k = int(np.clip(k, 2, max_k))
         knn_ref_idx = ref_top_idx[:, :k]
         knn_ref_dists = ref_top_dists[:, :k]
         k_dist_ref = knn_ref_dists[:, -1]
@@ -112,10 +101,69 @@ def run_evaluation() -> dict:
             interpretable_weight=0.80,
             splits=splits,
         )
+        state = {
+            "k": k,
+            "k_dist_ref": k_dist_ref,
+            "lrd_ref": lrd_ref,
+            "threshold": threshold,
+        }
+        return m, scores_test, infer_ms, state
 
-        ep_label = f"Epoch {ep_idx:02d}/10 (k={k:02d} NN)"
-        tr_metric = f"99%UCL={threshold:.3f}"
-        is_best = m["composite_score"] > best_score
+    best_score = -1.0
+    best_eval = None
+    best_epoch_label = ""
+    best_train_metric = ""
+    best_scores_test = None
+    best_infer_ms = 0.0
+    start_epoch = 1
+    resume_k = None
+    resume_msg = None
+    loaded_m = None
+
+    if CHECKPOINT_PATH.exists():
+        ckpt = np.load(CHECKPOINT_PATH, allow_pickle=False)
+        resume_k = int(ckpt["n_neighbors"])
+        prev_epoch = int(ckpt["best_epoch"]) if "best_epoch" in ckpt else 5
+        start_epoch = prev_epoch + 1
+
+        loaded_m, loaded_scores_test, loaded_infer_ms, loaded_state = evaluate_k(resume_k)
+        best_score = loaded_m["composite_score"]
+        best_eval = loaded_m
+        best_epoch_label = f"Saved Epoch {prev_epoch:02d} (k={resume_k:02d} NN)"
+        best_train_metric = f"99%UCL={loaded_state['threshold']:.3f}"
+        best_scores_test = loaded_scores_test
+        best_infer_ms = loaded_infer_ms
+        resume_msg = (
+            f"Loaded {CHECKPOINT_PATH.name} -> {best_epoch_label}, "
+            f"{best_train_metric}, Best Score={best_score:.2f}/100 (Resuming at Epoch {start_epoch:02d})"
+        )
+
+    print_banner(model_name, family, splits, resume_msg=resume_msg)
+
+    if loaded_m is not None:
+        print_epoch_row(
+            best_epoch_label,
+            best_train_metric,
+            loaded_m,
+            is_best=False,
+            status_override="✓ LOADED BEST CHECKPOINT",
+        )
+
+    if resume_k is not None:
+        k_schedule = [max(2, resume_k + d) for d in (-5, -4, -3, -2, -1, 1, 2, 3, 4, 5)]
+    else:
+        k_schedule = [5, 8, 12, 16, 20, 25, 30, 35, 40, 50]
+
+    epoch_history = []
+    end_epoch = start_epoch + len(k_schedule) - 1
+
+    for offset, k in enumerate(k_schedule):
+        ep_num = start_epoch + offset
+        m, scores_test, infer_ms, st = evaluate_k(k)
+
+        ep_label = f"Epoch {ep_num:02d}/{end_epoch:02d} (k={st['k']:02d} NN)"
+        tr_metric = f"99%UCL={st['threshold']:.3f}"
+        is_best = m["composite_score"] > best_score + 1e-6
 
         if is_best:
             best_score = m["composite_score"]
@@ -124,25 +172,24 @@ def run_evaluation() -> dict:
             best_train_metric = tr_metric
             best_scores_test = scores_test
             best_infer_ms = infer_ms
-            # Automatically save the new best LOF checkpoint to lof_checkpoint.npz
             np.savez_compressed(
                 CHECKPOINT_PATH,
                 model_type="Local_Outlier_Factor",
-                best_epoch=ep_idx,
-                n_neighbors=k,
+                best_epoch=ep_num,
+                n_neighbors=st["k"],
                 X_ref=X_ref,
-                k_dist_ref=k_dist_ref,
-                lrd_ref=lrd_ref,
-                score_threshold=threshold,
+                k_dist_ref=st["k_dist_ref"],
+                lrd_ref=st["lrd_ref"],
+                score_threshold=st["threshold"],
                 composite_score=best_score,
                 **splits["common_meta"],
             )
 
         print_epoch_row(ep_label, tr_metric, m, is_best)
         epoch_history.append({
-            "epoch": ep_idx,
-            "n_neighbors": k,
-            "threshold_99pct": round(threshold, 4),
+            "epoch": ep_num,
+            "n_neighbors": st["k"],
+            "threshold_99pct": round(st["threshold"], 4),
             "val_roc_auc": round(m["val_roc_auc"], 4),
             "val_f1": m["val_bm"]["f1_score"],
             "test_roc_auc": round(m["test_roc_auc"], 4),

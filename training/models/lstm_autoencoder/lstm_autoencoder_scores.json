@@ -2,33 +2,137 @@
   "model_key": "lstm_autoencoder",
   "model_name": "LSTM Autoencoder (SeqLen=10, Hidden=20)",
   "family": "Deep Temporal Sequence Reconstruction",
+  "best_epoch_or_stage": "Saved Epoch 09",
+  "best_train_metric": "MSE=0.07925",
   "checkpoint_file": "training/models/lstm_autoencoder/lstm_autoencoder_checkpoint.npz",
-  "threshold_99pct": 0.2213,
+  "threshold_99pct": 0.2146,
   "training_split_70pct": {
     "rows": 90720,
     "false_alarm_rate_pct": 1.0
   },
   "validation_split_15pct": {
     "rows": 19440,
-    "roc_auc": 0.9569,
-    "f1_score": 0.8932,
-    "precision": 0.9977,
-    "recall": 0.8086,
-    "accuracy": 0.9417,
+    "roc_auc": 0.9562,
+    "f1_score": 0.8929,
+    "precision": 0.9975,
+    "recall": 0.8082,
+    "accuracy": 0.9415,
     "flagged_pct_clean": 24.45,
-    "candidate_fault_events": 5
+    "candidate_fault_events": 6
   },
   "testing_split_15pct": {
     "rows": 19440,
-    "roc_auc": 0.973,
-    "f1_score": 0.9263,
-    "precision": 0.9731,
-    "recall": 0.8837,
-    "accuracy": 0.9194,
-    "signal_to_noise_ratio": 55.18,
-    "flagged_pct_clean": 52.03,
-    "candidate_fault_events": 19,
-    "inference_time_ms": 596.65
+    "roc_auc": 0.9743,
+    "f1_score": 0.9273,
+    "precision": 0.971,
+    "recall": 0.8874,
+    "accuracy": 0.9203,
+    "signal_to_noise_ratio": 54.98,
+    "flagged_pct_clean": 52.36,
+    "candidate_fault_events": 12,
+    "inference_time_ms": 543.68
   },
-  "composite_project_score": 94.27
+  "composite_project_score": 94.32,
+  "epoch_history": [
+    {
+      "epoch": 10,
+      "train_mse_loss": 0.07099,
+      "val_roc_auc": 0.9418,
+      "val_f1": 0.8878,
+      "test_roc_auc": 0.9663,
+      "test_f1": 0.9264,
+      "composite_score": 94.04,
+      "is_best": false
+    },
+    {
+      "epoch": 11,
+      "train_mse_loss": 0.06795,
+      "val_roc_auc": 0.9418,
+      "val_f1": 0.8875,
+      "test_roc_auc": 0.9676,
+      "test_f1": 0.9276,
+      "composite_score": 94.13,
+      "is_best": false
+    },
+    {
+      "epoch": 12,
+      "train_mse_loss": 0.06685,
+      "val_roc_auc": 0.9417,
+      "val_f1": 0.8897,
+      "test_roc_auc": 0.9635,
+      "test_f1": 0.9276,
+      "composite_score": 93.99,
+      "is_best": false
+    },
+    {
+      "epoch": 13,
+      "train_mse_loss": 0.06589,
+      "val_roc_auc": 0.9454,
+      "val_f1": 0.893,
+      "test_roc_auc": 0.9661,
+      "test_f1": 0.9267,
+      "composite_score": 94.06,
+      "is_best": false
+    },
+    {
+      "epoch": 14,
+      "train_mse_loss": 0.06508,
+      "val_roc_auc": 0.939,
+      "val_f1": 0.887,
+      "test_roc_auc": 0.9623,
+      "test_f1": 0.9243,
+      "composite_score": 93.86,
+      "is_best": false
+    },
+    {
+      "epoch": 15,
+      "train_mse_loss": 0.06429,
+      "val_roc_auc": 0.9373,
+      "val_f1": 0.8861,
+      "test_roc_auc": 0.9632,
+      "test_f1": 0.9253,
+      "composite_score": 93.88,
+      "is_best": false
+    },
+    {
+      "epoch": 16,
+      "train_mse_loss": 0.06373,
+      "val_roc_auc": 0.9389,
+      "val_f1": 0.8874,
+      "test_roc_auc": 0.9633,
+      "test_f1": 0.927,
+      "composite_score": 93.94,
+      "is_best": false
+    },
+    {
+      "epoch": 17,
+      "train_mse_loss": 0.06302,
+      "val_roc_auc": 0.9401,
+      "val_f1": 0.8868,
+      "test_roc_auc": 0.9639,
+      "test_f1": 0.9259,
+      "composite_score": 93.92,
+      "is_best": false
+    },
+    {
+      "epoch": 18,
+      "train_mse_loss": 0.06231,
+      "val_roc_auc": 0.9423,
+      "val_f1": 0.8876,
+      "test_roc_auc": 0.9627,
+      "test_f1": 0.9282,
+      "composite_score": 93.96,
+      "is_best": false
+    },
+    {
+      "epoch": 19,
+      "train_mse_loss": 0.06191,
+      "val_roc_auc": 0.9419,
+      "val_f1": 0.8866,
+      "test_roc_auc": 0.9646,
+      "test_f1": 0.9268,
+      "composite_score": 93.99,
+      "is_best": false
+    }
+  ]
 }

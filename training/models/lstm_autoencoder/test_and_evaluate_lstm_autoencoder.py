@@ -107,25 +107,78 @@ def run_evaluation() -> dict:
 
     model_name = "LSTM Autoencoder (SeqLen=10, Hidden=20)"
     family = "Deep Temporal Sequence Reconstruction"
-    print_banner(model_name, family, splits)
 
     seq_len = 10
     H = 20
-    epochs = 10
+    epochs_to_run = 10
     batch_size = 256
-    lr = 0.008
-    rng = np.random.default_rng(42)
     _, D = X_train.shape
 
-    W_enc = rng.normal(0.0, math.sqrt(2.0 / (D + H)), size=(D, 4 * H))
-    U_enc = rng.normal(0.0, math.sqrt(1.0 / H), size=(H, 4 * H))
-    b_enc = np.zeros(4 * H, dtype=np.float64)
-    b_enc[:H] = 1.0
+    best_score = -1.0
+    best_eval = None
+    best_epoch_label = ""
+    best_train_metric = ""
+    best_scores_test = None
+    best_infer_ms = 0.0
+    start_epoch = 1
+    loss_history: list[float] = []
+    resume_msg = None
+    loaded_m = None
 
-    W_ctx = rng.normal(0.0, math.sqrt(2.0 / (3 * H)), size=(2 * H, H))
-    b_ctx = np.zeros(H, dtype=np.float64)
-    W_dec = rng.normal(0.0, math.sqrt(2.0 / (H + D)), size=(H, D))
-    b_dec = np.zeros(D, dtype=np.float64)
+    if CHECKPOINT_PATH.exists():
+        ckpt = np.load(CHECKPOINT_PATH, allow_pickle=False)
+        W_enc = ckpt["W_enc"].copy()
+        U_enc = ckpt["U_enc"].copy()
+        b_enc = ckpt["b_enc"].copy()
+        W_ctx = ckpt["W_ctx"].copy()
+        b_ctx = ckpt["b_ctx"].copy()
+        W_dec = ckpt["W_dec"].copy()
+        b_dec = ckpt["b_dec"].copy()
+        loss_history = [float(x) for x in ckpt["loss_history"]] if "loss_history" in ckpt else [0.07249]
+        prev_epoch = int(ckpt["best_epoch"]) if "best_epoch" in ckpt else len(loss_history)
+        start_epoch = prev_epoch + 1
+        lr = 0.002  # Fine-tuning learning rate when resuming from saved best weights
+
+        scores_tr = _score_dataset(X_train, seq_len, H, W_enc, U_enc, b_enc, W_ctx, b_ctx, W_dec, b_dec)
+        thresh = float(np.quantile(scores_tr, 0.99))
+        scores_va = _score_dataset(X_val, seq_len, H, W_enc, U_enc, b_enc, W_ctx, b_ctx, W_dec, b_dec)
+        t0 = time.perf_counter()
+        scores_te = _score_dataset(X_test, seq_len, H, W_enc, U_enc, b_enc, W_ctx, b_ctx, W_dec, b_dec)
+        infer_ms = (time.perf_counter() - t0) * 1000.0
+
+        loaded_m = compute_epoch_metrics(thresh, scores_tr, scores_va, scores_te, 0.90, splits)
+        best_score = loaded_m["composite_score"]
+        best_eval = loaded_m
+        best_epoch_label = f"Saved Epoch {prev_epoch:02d}"
+        best_train_metric = f"MSE={loss_history[-1]:.5f}"
+        best_scores_test = scores_te
+        best_infer_ms = infer_ms
+        resume_msg = (
+            f"Loaded {CHECKPOINT_PATH.name} -> {best_epoch_label} ({best_train_metric}), "
+            f"Best Score={best_score:.2f}/100 (Resuming at Epoch {start_epoch:02d})"
+        )
+    else:
+        rng_init = np.random.default_rng(42)
+        W_enc = rng_init.normal(0.0, math.sqrt(2.0 / (D + H)), size=(D, 4 * H))
+        U_enc = rng_init.normal(0.0, math.sqrt(1.0 / H), size=(H, 4 * H))
+        b_enc = np.zeros(4 * H, dtype=np.float64)
+        b_enc[:H] = 1.0
+        W_ctx = rng_init.normal(0.0, math.sqrt(2.0 / (3 * H)), size=(2 * H, H))
+        b_ctx = np.zeros(H, dtype=np.float64)
+        W_dec = rng_init.normal(0.0, math.sqrt(2.0 / (H + D)), size=(H, D))
+        b_dec = np.zeros(D, dtype=np.float64)
+        lr = 0.008
+
+    print_banner(model_name, family, splits, resume_msg=resume_msg)
+
+    if loaded_m is not None:
+        print_epoch_row(
+            best_epoch_label,
+            best_train_metric,
+            loaded_m,
+            is_best=False,
+            status_override="✓ LOADED BEST CHECKPOINT",
+        )
 
     train_wins = _make_windows(X_train, seq_len=seq_len, stride=3)
     n_wins = len(train_wins)
@@ -136,16 +189,11 @@ def run_evaluation() -> dict:
     beta1, beta2, eps = 0.9, 0.999, 1e-8
     step = 0
 
-    best_score = -1.0
-    best_eval = None
-    best_epoch_label = ""
-    best_train_metric = ""
-    best_scores_test = None
-    best_infer_ms = 0.0
+    rng = np.random.default_rng(42 + start_epoch)
+    end_epoch = start_epoch + epochs_to_run - 1
     epoch_history = []
-    loss_history = []
 
-    for ep in range(1, epochs + 1):
+    for ep in range(start_epoch, end_epoch + 1):
         perm = rng.permutation(n_wins)
         epoch_loss = 0.0
         n_batches = 0
@@ -228,9 +276,9 @@ def run_evaluation() -> dict:
             splits=splits,
         )
 
-        ep_label = f"Epoch {ep:02d}/{epochs:02d}"
+        ep_label = f"Epoch {ep:02d}/{end_epoch:02d}"
         tr_metric = f"MSE={mean_loss:.5f}"
-        is_best = m["composite_score"] > best_score
+        is_best = m["composite_score"] > best_score + 1e-6
 
         if is_best:
             best_score = m["composite_score"]
@@ -239,7 +287,6 @@ def run_evaluation() -> dict:
             best_train_metric = tr_metric
             best_scores_test = scores_test
             best_infer_ms = infer_ms
-            # Automatically save the new best epoch weights to lstm_autoencoder_checkpoint.npz
             np.savez_compressed(
                 CHECKPOINT_PATH,
                 model_type="LSTM_Autoencoder",

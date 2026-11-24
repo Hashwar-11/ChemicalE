@@ -378,8 +378,8 @@ def compute_epoch_metrics(
     }
 
 
-def print_banner(model_title: str, family: str, split_info: dict) -> None:
-    line = "=" * 102
+def print_banner(model_title: str, family: str, split_info: dict, resume_msg: str | None = None) -> None:
+    line = "=" * 106
     print(f"\n{line}")
     print(f"  MODEL TRAINING & EVALUATION: {model_title}")
     print(f"  Architecture Family        : {family}")
@@ -388,12 +388,16 @@ def print_banner(model_title: str, family: str, split_info: dict) -> None:
         f"Val={len(split_info['X_val_scaled']):,} rows | Test={len(split_info['X_test_scaled']):,} rows "
         f"({len(split_info['sel_names'])} selected features)"
     )
+    if resume_msg:
+        print(f"  Checkpoint Resume State    : {resume_msg}")
+    else:
+        print("  Checkpoint Resume State    : No prior checkpoint found — starting fresh from Epoch 01")
     print(line)
     print(
-        f"  {'Epoch / Stage':<22} | {'Train Metric':<16} | {'Val AUC':>8} | {'Val F1':>8} | "
+        f"  {'Epoch / Stage':<24} | {'Train Metric':<16} | {'Val AUC':>8} | {'Val F1':>8} | "
         f"{'Test AUC':>8} | {'Test F1':>8} | {'Score':>7} | {'Status'}"
     )
-    print("-" * 102)
+    print("-" * 106)
 
 
 def print_epoch_row(
@@ -401,10 +405,14 @@ def print_epoch_row(
     train_metric_str: str,
     m: dict,
     is_best: bool,
+    status_override: str | None = None,
 ) -> None:
-    badge = "★ NEW BEST (Checkpoint Saved)" if is_best else ""
+    if status_override is not None:
+        badge = status_override
+    else:
+        badge = "★ NEW BEST (Checkpoint Saved)" if is_best else ""
     print(
-        f"  {epoch_label:<22} | {train_metric_str:<16} | "
+        f"  {epoch_label:<24} | {train_metric_str:<16} | "
         f"{m['val_roc_auc']:>8.4f} | {m['val_bm']['f1_score']:>8.4f} | "
         f"{m['test_roc_auc']:>8.4f} | {m['test_bm']['f1_score']:>8.4f} | "
         f"{m['composite_score']:>6.2f}  | {badge}"
